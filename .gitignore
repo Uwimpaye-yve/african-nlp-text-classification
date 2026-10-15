@@ -1,0 +1,20 @@
+# Python & virtual environment
+__pycache__/
+*.py[cod]
+venv/
+.env
+
+# Data and large artifacts
+data/raw/*
+data/processed/*
+!data/**/.gitkeep
+models/checkpoints/
+*.pt
+*.bin
+*.onnx
+
+# Jupyter checkpoints
+.ipynb_checkpoints/
+
+app/best_afriberta_model/*.safetensors
+app/best_afriberta_model/*.bin
