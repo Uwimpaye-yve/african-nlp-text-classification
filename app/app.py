@@ -1,64 +1,79 @@
 import streamlit as st
 import torch
-from pathlib import Path
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
-st.set_page_config(page_title="Swahili News Classifier", page_icon="🌍", layout="centered")
+# Page configuration
+st.set_page_config(
+    page_title="Swahili News Topic Classifier",
+    page_icon="🌍",
+    layout="centered"
+)
 
+# Header & Introduction
 st.title("🌍 Swahili News Topic Classifier")
 st.markdown(
     """
-    This application classifies Swahili news articles into 7 categories using a fine-tuned 
-    **AfriBERTa** model trained on the **MasakhaNEWS** benchmark.
+    This web application classifies Swahili news headlines and articles into **7 categories** 
+    using a fine-tuned **AfriBERTa** transformer model trained on the **MasakhaNEWS** benchmark.
     """
 )
 
+# Hugging Face Model Hub identifier
+MODEL_ID = "uyvette/swahili-news-afriberta"
+
 @st.cache_resource
 def load_model():
-    # Resolve absolute path to the directory containing model weights
-    base_dir = Path(__file__).resolve().parent
-    model_dir = base_dir / "best_afriberta_model"
-
-    if not model_dir.exists():
-        # Fallback if best_afriberta_model is placed in the project root instead of app/
-        model_dir = base_dir.parent / "best_afriberta_model"
-
-    if not model_dir.exists():
-        raise FileNotFoundError(f"Model folder not found at {model_dir}")
-
-    # Pass the resolved string path
-    tokenizer = AutoTokenizer.from_pretrained(str(model_dir), local_files_only=True)
-    model = AutoModelForSequenceClassification.from_pretrained(str(model_dir), local_files_only=True)
+    """Download and cache tokenizer and model directly from Hugging Face Hub."""
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
+    model = AutoModelForSequenceClassification.from_pretrained(MODEL_ID)
     model.eval()
     return tokenizer, model
 
+# Load model with status indication
 try:
-    tokenizer, model = load_model()
+    with st.spinner("Loading AfriBERTa model from Hugging Face Hub..."):
+        tokenizer, model = load_model()
     st.success("Model loaded successfully!")
 except Exception as e:
     st.error(f"Error loading model: {e}")
     st.stop()
 
-# Sample Swahili headlines for testing
+# Sample Swahili news headlines for quick testing
 example_prompts = {
     "Select an example...": "",
-    "Sports Example": "Simba SC yapata ushindi mnono dhidi ya watani wao wa jadi uwanja wa Mkapa jijini Dar es Salaam.",
-    "Health Example": "Wizara ya Afya yatangaza mikakati mipya ya kupambana na ugonjwa wa malaria na kipindupindu.",
-    "Politics Example": "Bunge la Jamhuri ya Muungano wa Tanzania limepitisha muswada mpya wa sheria za uchaguzi.",
-    "Technology Example": "Kampuni za mawasiliano zazindua mtandao wa 5G ili kuboresha huduma za kidijitali nchini."
+    "Michezo (Sports)": "Simba SC yapata ushindi mnono dhidi ya watani wao wa jadi uwanja wa Mkapa jijini Dar es Salaam.",
+    "Afya (Health)": "Wizara ya Afya yatangaza mikakati mipya ya kupambana na maambukizi ya ugonjwa wa malaria na kipindupindu.",
+    "Siasa (Politics)": "Bunge la Jamhuri ya Muungano wa Tanzania limepitisha muswada mpya wa sheria kuhusu taratibu za uchaguzi mkuu.",
+    "Teknolojia (Technology)": "Kampuni za mawasiliano zazindua mtandao wa kasi wa 5G ili kuboresha upatikanaji wa huduma za kidijitali nchini.",
+    "Biashara (Business)": "Benki Kuu yatangaza viwango vipya vya riba huku mfumuko wa bei ukishuka na kukuza biashara za ndani."
 }
 
-selected_example = st.selectbox("Or choose a pre-filled Swahili example:", list(example_prompts.keys()))
+selected_example = st.selectbox("Choose a pre-filled Swahili example (or type below):", list(example_prompts.keys()))
 default_text = example_prompts[selected_example] if selected_example != "Select an example..." else ""
 
-user_input = st.text_area("Enter Swahili News Headline & Text:", value=default_text, height=150)
+# Input text box
+user_input = st.text_area(
+    "Enter Swahili News Headline & Text:",
+    value=default_text,
+    height=150,
+    placeholder="Andika au bandika habari ya Kiswahili hapa..."
+)
 
+# Classification button and inference pipeline
 if st.button("Classify Article", type="primary"):
     if not user_input.strip():
-        st.warning("Please enter some text in Swahili to analyze.")
+        st.warning("Tafadhali ingiza maandishi ya habari (Please enter news text to analyze).")
     else:
-        with st.spinner("Classifying..."):
-            inputs = tokenizer(user_input, return_tensors="pt", truncation=True, max_length=256)
+        with st.spinner("Analyzing text and computing category probabilities..."):
+            # Tokenize input
+            inputs = tokenizer(
+                user_input,
+                return_tensors="pt",
+                truncation=True,
+                max_length=256
+            )
+
+            # Perform inference
             with torch.no_grad():
                 outputs = model(**inputs)
                 probabilities = torch.softmax(outputs.logits, dim=-1)[0]
@@ -67,14 +82,17 @@ if st.button("Classify Article", type="primary"):
             predicted_label = model.config.id2label[predicted_id]
             confidence = probabilities[predicted_id].item()
 
+            st.divider()
+
+            # Prediction Output Display
             st.markdown(f"### Predicted Category: **{predicted_label.upper()}**")
             st.markdown(f"**Confidence Score:** `{confidence * 100:.2f}%`")
-            st.progress(confidence)
+            st.progress(min(max(confidence, 0.0), 1.0))
 
-            # Show distribution across all 7 classes
-            st.markdown("#### Probability Distribution:")
+            # Probability distribution chart across all 7 categories
+            st.markdown("#### Probability Distribution Across Classes:")
             prob_dict = {
-                model.config.id2label[i]: float(probabilities[i]) 
+                model.config.id2label[i]: float(probabilities[i])
                 for i in range(len(model.config.id2label))
             }
             st.bar_chart(prob_dict)
