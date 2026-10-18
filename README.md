@@ -15,6 +15,7 @@ An end-to-end Natural Language Processing (NLP) pipeline and deployed web applic
 - **Benchmark Dataset:** [MasakhaNEWS](https://huggingface.co/datasets/masakhane/masakhanews) (`masakhane/masakhanews`, `swa` split)
 - **Classes (7):** `business`, `entertainment`, `health`, `politics`, `religion`, `sports`, `technology`
 - **Live Web Application:** [Swahili News Topic Classifier on Streamlit Cloud](https://swahili-nlp-news-classification.streamlit.app)
+-  **Link Demo Video :** https://youtu.be/mYUl41p2zH8)
 - **Model Checkpoint:** [`uyvette/swahili-news-afriberta`](https://huggingface.co/uyvette/swahili-news-afriberta)
 
 ---
